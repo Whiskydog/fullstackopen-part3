@@ -5,6 +5,14 @@ const morgan = require('morgan');
 const cors = require('cors');
 const Person = require('./models/person');
 
+const errorHandler = (err, _req, res, next) => {
+  if (err.name === 'CastError') {
+    return res.status(400).send({ error: 'Wrong id format' });
+  }
+
+  next(err);
+};
+
 morgan.token('body', (req) => {
   if (req.method === 'POST') return JSON.stringify(req.body);
   return '\b';
@@ -80,6 +88,8 @@ app.get('/info', (_req, res) => {
 
   res.send(html);
 });
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => console.log(`App listening on port ${PORT}`));
