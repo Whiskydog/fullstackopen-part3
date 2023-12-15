@@ -6,11 +6,17 @@ const cors = require('cors');
 const Person = require('./models/person');
 
 const errorHandler = (err, _req, res, next) => {
-  if (err.name === 'CastError') {
-    return res.status(400).send({ error: 'Wrong id format' });
+  switch (err.name) {
+    case 'CastError':
+      res.status(400).send({ error: 'Wrong id format' });
+      break;
+    case 'ValidationError':
+      res.status(400).send({ error: Object.values(err.errors)[0].message });
+      break;
+    default:
+      next(err);
+      break;
   }
-
-  next(err);
 };
 
 morgan.token('body', (req) => {
@@ -40,7 +46,11 @@ app.get('/api/persons/:id', (req, res, next) => {
 
 app.put('/api/persons/:id', (req, res, next) => {
   const { name, number } = req.body;
-  Person.findByIdAndUpdate(req.params.id, { name, number }, { new: true })
+  Person.findByIdAndUpdate(
+    req.params.id,
+    { name, number },
+    { new: true, runValidators: true }
+  )
     .then((person) => {
       if (person) res.json(person);
       else res.status(404).end();
@@ -54,7 +64,7 @@ app.delete('/api/persons/:id', (req, res, next) => {
     .catch((error) => next(error));
 });
 
-app.post('/api/persons', (req, res) => {
+app.post('/api/persons', (req, res, next) => {
   const { body } = req;
 
   if (!body.name || !body.number)
@@ -63,7 +73,10 @@ app.post('/api/persons', (req, res) => {
   const { name, number } = body;
   const newPerson = new Person({ name, number });
 
-  newPerson.save().then((person) => res.json(person));
+  newPerson
+    .save()
+    .then((person) => res.json(person))
+    .catch((error) => next(error));
 });
 
 app.get('/info', (_req, res) => {
